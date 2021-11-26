@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
+using System.IO;
 using System.Text;
 using System.Threading.Tasks;
 
@@ -37,5 +38,29 @@ namespace QuickApp
             return recentFiles;
         }
 
+        /// <summary>
+        /// 外部捕获异常
+        /// </summary>
+        /// <param name="srcDir"></param>
+        /// <param name="destDir"></param>
+        public static void CopyDirectory(string srcDir, string destDir)
+        {
+            if (!Directory.Exists(srcDir))
+            {
+                return;
+            }
+            if (!Directory.Exists(destDir))
+            {
+                Directory.CreateDirectory(destDir);
+            }
+            foreach (var item in Directory.GetDirectories(srcDir))
+            {
+                CopyDirectory(item, destDir + "//" + item.GetFilePathTopestName());
+            }
+            foreach (var item in Directory.GetFiles(srcDir))
+            {
+                File.Copy(item, destDir + "//" + item.GetFilePathTopestName());
+            }
+        }
     }
 }

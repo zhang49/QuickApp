@@ -66,14 +66,75 @@ namespace QuickApp
             return rpy.toJson();
         }
 
+        public string FileSystemMoveTo(string str)
+        {
+            CRequest req = new CRequest();
+            CReply rpy = new CReply();
+            try
+            {
+                req.FromJson(str);
+                var data = (Dictionary<string, string>)req.Data;
+                string srcFilePath = data["srcFilePath"];
+                string srcType = data["srcType"];
+                string destFilePath = data["destFilePath"];
+                string destType = data["destType"];
+                if (srcType == FileSystemItemsInfo.FILE && destType == FileSystemItemsInfo.FILE)
+                {
+                    File.Move(srcFilePath, destFilePath);
+                }
+                else if (srcType == FileSystemItemsInfo.FILE && destType == FileSystemItemsInfo.DIRECTORY)
+                {
+                    destFilePath += "\\" + srcFilePath.GetFilePathTopestName();
+                    File.Move(srcFilePath, destFilePath);
+                }
+                else if (srcType == FileSystemItemsInfo.DIRECTORY && destType == FileSystemItemsInfo.DIRECTORY)
+                {
+                    Directory.Move(srcFilePath, destType);
+                }
+                else
+                {
+                    rpy.ErrCode = 1;
+                    rpy.ErrStr = "file type error";
+                }
+            }
+            catch (Exception e)
+            {
+                rpy.ErrCode = 0xFFFF;
+                rpy.ErrStr = e.ToString();
+            }
+            return rpy.toJson();
+        }
+
         public string FileSystemCopyTo(string str)
         {
             CRequest req = new CRequest();
             CReply rpy = new CReply();
             try
             {
-
                 req.FromJson(str);
+                var data = (Dictionary<string, string>)req.Data;
+                string srcFilePath = data["srcFilePath"];
+                string srcType = data["srcType"];
+                string destFilePath = data["destFilePath"];
+                string destType = data["destType"];
+                if (srcType == FileSystemItemsInfo.FILE && destType == FileSystemItemsInfo.FILE)
+                {
+                    File.Copy(srcFilePath, destFilePath);
+                }
+                else if (srcType == FileSystemItemsInfo.FILE && destType == FileSystemItemsInfo.DIRECTORY)
+                {
+                    destFilePath += "\\" + srcFilePath.GetFilePathTopestName();
+                    File.Copy(srcFilePath, destFilePath);
+                }
+                else if (srcType == FileSystemItemsInfo.DIRECTORY && destType == FileSystemItemsInfo.DIRECTORY)
+                {
+                    Apis.CopyDirectory(srcFilePath, destType);
+                }
+                else
+                {
+                    rpy.ErrCode = 1;
+                    rpy.ErrStr = "file type error";
+                }
             }
             catch (Exception e)
             {
@@ -89,8 +150,24 @@ namespace QuickApp
             CReply rpy = new CReply();
             try
             {
-                
                 req.FromJson(str);
+                var data = (Dictionary<string, string>)req.Data;
+                string filePath = data["filePath"];
+                string fileType = data["type"];
+                switch (fileType)
+                {
+                    case FileSystemItemsInfo.DIRECTORY:
+                        Directory.Delete(filePath, true);
+                        break;
+                    case FileSystemItemsInfo.FILE:
+                        File.Delete(filePath);
+                        break;
+                    default:
+                        rpy.ErrCode = 1;
+                        rpy.ErrStr = "file type error";
+                        break;
+                }
+
             }
             catch (Exception e)
             {
