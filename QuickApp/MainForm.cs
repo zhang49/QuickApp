@@ -13,6 +13,7 @@ using System.Windows.Forms;
 using CefSharp.WinForms;
 using CefSharp;
 using System.IO;
+using System.Management;
 
 namespace QuickApp
 {
@@ -25,25 +26,10 @@ namespace QuickApp
         {
             InitializeComponent();
             this.Icon = Properties.Resources.app;
-
-            string appDataPath = Environment.GetEnvironmentVariable("AppData");
-            string recentPath = appDataPath + "\\Microsoft\\Windows\\Recent\\";
-            string[] recentFiles = System.IO.Directory.GetFiles(recentPath);
-            System.Text.RegularExpressions.Regex regex = new System.Text.RegularExpressions.Regex(@".*\.sln");
-
-            List<string> slnFiles = new List<string>();
-            foreach (var item in recentFiles)
-            {
-                if (regex.Match(item).Success)
-                {
-                    slnFiles.Add(item);
-                }
-            }
-            
             //InitialTray();
-
             InitBrowser();
         }
+
 
         private void InitBrowser()
         {
@@ -55,7 +41,6 @@ namespace QuickApp
 
             browser.KeyboardHandler = new CEFKeyBoardHander();
             this.Controls.Add(browser);
-
         }
 
         public void RegistHotKey()

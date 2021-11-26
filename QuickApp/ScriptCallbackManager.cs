@@ -8,94 +8,216 @@ namespace QuickApp
 {
     public class ScriptCallbackManager
     {
-        public delegate bool GenDocDelegate(string data);
-        public GenDocDelegate GenDocFunc;
-
-        /// <summary>
-        /// 生成文档, js调用方法时，方法名首字母需小写
-        /// </summary>
-        /// <param name="data"></param>
-        /// <returns></returns>
-        public string GenerateDoc(string data)
+        public string FileSystemGetRecentFiles()
         {
-            Dictionary<string, object> root = new Dictionary<string, object>();
+            CReply rpy = new CReply();
             try
             {
-                bool? ret = GenDocFunc?.Invoke(data);
-                if (ret.HasValue && ret == true)
+                rpy.Data = Apis.GetRecentFiles();
+            }
+            catch (Exception exp)
+            {
+                rpy.ErrCode = 0xFFFF;
+                rpy.ErrStr = exp.ToString();
+            }
+            return rpy.toJson();
+        }
+        public string FileSystemGetFiles(string str)
+        {
+            CRequest req = new CRequest();
+            CReply rpy = new CReply();
+            try
+            {
+                req.FromJson(str);
+                string url = (string)req.Data;
+                List<FileSystemItemsInfo> fsItems = new List<FileSystemItemsInfo>();
+                rpy.Data = fsItems;
+                if (String.IsNullOrEmpty(url))
                 {
-                    var msgData = new Dictionary<string, object>();
-                    //msgData["output_filepath"] = Directory.GetCurrentDirectory() + Properties.Resources.OutPutDocRelFilePath;
-                    root["error_code"] = 0;
-                    root["error_str"] = "";
-                    root["data"] = msgData;
+                    List<FileSystemElementInfo> items = new List<FileSystemElementInfo>();
+                    foreach (var item in Directory.GetLogicalDrives())
+                    {
+                        items.Add(new FileSystemElementInfo() { FullPath = item, Name = item.GetFilePathTopestName() });
+                    }
+                    fsItems.Add(FileSystemItemsInfo.AsDrive(items));
+                }
+                else
+                {
+                    List<FileSystemElementInfo> dirItems = new List<FileSystemElementInfo>();
+                    List<FileSystemElementInfo> fileItems = new List<FileSystemElementInfo>();
+                    foreach (var item in Directory.GetDirectories(url))
+                    {
+                        dirItems.Add(new FileSystemElementInfo() { FullPath = item, Name = item.GetFilePathTopestName() });
+                    }
+                    fsItems.Add(FileSystemItemsInfo.AsDirectory(dirItems));
+                    foreach (var item in Directory.GetFiles(url))
+                    {
+                        fileItems.Add(new FileSystemElementInfo() { FullPath = item, Name = item.GetFilePathTopestName() });
+                    }
+                    fsItems.Add(FileSystemItemsInfo.AsFile(fileItems));
                 }
             }
-            catch (Exception exp)
+            catch (Exception e)
             {
-                root["error_code"] = 1;
-                root["error_str"] = exp.Message;
+                rpy.ErrCode = 0xFFFF;
+                rpy.ErrStr = e.ToString();
             }
-            return JsonConvert.SerializeObject(root);
+            string ttt = rpy.toJson();
+            return rpy.toJson();
         }
-        public string ShowAccessSystemImgEditWindow(string data)
+
+        public string FileSystemCopyTo(string str)
         {
-            Dictionary<string, object> root = new Dictionary<string, object>();
+            CRequest req = new CRequest();
+            CReply rpy = new CReply();
             try
             {
-                root["error_code"] = 0;
-                root["error_str"] = "";
 
+                req.FromJson(str);
             }
-            catch (Exception exp)
+            catch (Exception e)
             {
-                root["error_code"] = 1;
-                root["error_str"] = exp.ToString();
+                rpy.ErrCode = 0xFFFF;
+                rpy.ErrStr = e.ToString();
             }
-            return JsonConvert.SerializeObject(root);
+            return rpy.toJson();
         }
 
-        public string GetAccessSystemImg()
+        public string FileSystemDelete(string str)
         {
-            Dictionary<string, object> root = new Dictionary<string, object>();
-            root["error_code"] = 1;
-            root["error_str"] = "open error";
-            root["data"] = "";
+            CRequest req = new CRequest();
+            CReply rpy = new CReply();
             try
             {
-                //string imgBase64 = CUtil.GetImageBase64(Directory.GetCurrentDirectory() + Properties.Resources.AccessSystemImgRelFilePath, new Size(610, 488));
-                //if (!string.IsNullOrEmpty(imgBase64))
-                //{
-                //    root["error_code"] = 0;
-                //    root["error_str"] = "";
-                //    root["data"] = "data:image/jpg;base64," + imgBase64;
-                //}
+                
+                req.FromJson(str);
             }
-            catch (Exception exp)
+            catch (Exception e)
             {
-                root["error_str"] = exp.ToString();
+                rpy.ErrCode = 0xFFFF;
+                rpy.ErrStr = e.ToString();
             }
-            return JsonConvert.SerializeObject(root);
+            return rpy.toJson();
         }
 
-        public string OpenOutPutDoc()
+        public string StartApp(string str)
         {
-            Dictionary<string, object> root = new Dictionary<string, object>();
+            CRequest req = new CRequest();
+            CReply rpy = new CReply();
             try
             {
-              //  System.Diagnostics.Process.Start(Directory.GetCurrentDirectory() + Properties.Resources.OutPutDocRelFilePath);
-                root["error_code"] = 0;
-                root["error_str"] = "";
-                root["data"] = "";
+                req.FromJson(str);
+                string filePath = (string)req.Data;
+                if (!Apis.StartApp(filePath))
+                {
+                    rpy.ErrCode = 1;
+                }
             }
-            catch (Exception exp)
+            catch (Exception e)
             {
-                root["error_code"] = root["error_str"] = exp.ToString();
-                root["data"] = "";
+                rpy.ErrCode = 0xFFFF;
+                rpy.ErrStr = e.ToString();
             }
-            return JsonConvert.SerializeObject(root);
+            return rpy.toJson();
         }
 
 
+        [Serializable]
+        class FileSystemItemsInfo
+        {
+            private string type;
+            private List<FileSystemElementInfo> items = new List<FileSystemElementInfo>();
+
+            public const string DRIVE = "drive";
+            public const string DIRECTORY = "directory";
+            public const string FILE = "file";
+
+            public string Type { get => type; set => type = value; }
+            public List<FileSystemElementInfo> Items { get => items; set => items = value; }
+
+            public static FileSystemItemsInfo AsFile(List<FileSystemElementInfo> items)
+            {
+                return new FileSystemItemsInfo() { Type = FILE, Items = items };
+            }
+            public static FileSystemItemsInfo AsDirectory(List<FileSystemElementInfo> items)
+            {
+                return new FileSystemItemsInfo() { Type = DIRECTORY, Items = items };
+            }
+            public static FileSystemItemsInfo AsDrive(List<FileSystemElementInfo> items)
+            {
+                return new FileSystemItemsInfo() { Type = DRIVE, Items = items };
+            }
+
+        }
+
+
+        [Serializable]
+        class FileSystemElementInfo
+        {
+            private string name;
+            private string fullPath;
+
+            public string Name { get => name; set => name = value; }
+            public string FullPath { get => fullPath; set => fullPath = value; }
+        }
+
+        [Serializable]
+        class CRequest
+        {
+            private int errCode = 0;
+            private string errStr = "";
+            private object data;
+
+            public CRequest()
+            {
+
+            }
+
+            public int ErrCode { get => errCode; set => errCode = value; }
+            public string ErrStr { get => errStr; set => errStr = value; }
+            public object Data { get => data; set => data = value; }
+            public bool FromJson(string str)
+            {
+                CRequest r = null;
+                try
+                {
+                    r = JsonConvert.DeserializeObject<CRequest>(str);
+                    ErrStr = r.ErrStr;
+                    ErrCode = r.ErrCode;
+                    Data = r.Data;
+                    return true;
+                }
+                catch (Exception e)
+                {
+
+                }
+                return false;
+            }
+            public string toJson()
+            {
+                return JsonConvert.SerializeObject(this);
+            }
+        }
+        [Serializable]
+        class CReply
+        {
+            private int errCode = 0;
+            private string errStr = "";
+            private object data;
+            public CReply()
+            {
+                errCode = 0;
+                errStr = "";
+            }
+
+            public int ErrCode { get => errCode; set => errCode = value; }
+            public string ErrStr { get => errStr; set => errStr = value; }
+            public object Data { get => data; set => data = value; }
+            public string toJson()
+            {
+                return JsonConvert.SerializeObject(this);
+            }
+
+        }
     }
 }

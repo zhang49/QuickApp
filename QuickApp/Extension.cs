@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace ContractGenerateTools
+namespace QuickApp
 {
     public static class Extension
     {
@@ -38,6 +38,42 @@ namespace ContractGenerateTools
             {
                 action(i);
             }
+        }
+
+
+        public static string GetFilePathTopestName(this string filePath)
+        {
+            int subIdx = int.MaxValue;
+            int charIdx = -1;
+            bool flag = false;
+            for (int i = filePath.Length - 1; i >= 0; i--)
+            {
+                if (filePath[i] == '/' || filePath[i] == '\\')
+                {
+                    if (flag)
+                    {
+                        subIdx = i;
+                        break;
+                    }
+                }
+                else
+                {
+                    if (i == 0)
+                    {
+                        subIdx = i - 1;
+                    }
+                    if (!flag)
+                    {
+                        charIdx = i;
+                    }
+                    flag = true;
+                }
+            }
+            if (subIdx != int.MaxValue)
+            {
+                return filePath.Substring(subIdx + 1, charIdx + 1 - (subIdx + 1));
+            }
+            return "";
         }
     }
 }
