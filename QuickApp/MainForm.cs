@@ -1,6 +1,7 @@
 ﻿using Microsoft.Win32;
 using NHotkey.WindowsForms;
 using System;
+using System.Drawing;
 using System.Threading;
 using System.Collections.Generic;
 using System.ComponentModel;
@@ -14,31 +15,42 @@ using CefSharp.WinForms;
 using CefSharp;
 using System.IO;
 using System.Management;
+using System.Runtime.InteropServices;
+using System.Drawing.Imaging;
+using QuickApp.net;
 
 namespace QuickApp
 {
     public partial class MainForm : Form
     {
         private NotifyIcon notifyIcon = null;
-        private bool mIsStop = false;
         public ChromiumWebBrowser browser;
+        private bool mRunning;
+
+        //windwos screen
+        private static readonly object imgLock = new object();
+        private static byte[] imgBytes = new byte[1920 * 1080 * 4];
+        private static Semaphore mImgSem = new Semaphore(0, int.MaxValue);
+
         public MainForm()
         {
+            mRunning = true;
             InitializeComponent();
             this.Icon = Properties.Resources.app;
-            //InitialTray();
+            InitialTray();
             InitBrowser();
+            this.StartPosition = FormStartPosition.CenterScreen;
+            btnExit.BringToFront();
         }
-
 
         private void InitBrowser()
         {
+            this.FormBorderStyle = FormBorderStyle.None;
             Cef.Initialize(new CefSettings());
             browser = new ChromiumWebBrowser(Directory.GetCurrentDirectory() + Properties.Resources.CefIndexHtmlRelFilePath);
             browser.Dock = DockStyle.Fill;
             browser.JavascriptObjectRepository.Settings.LegacyBindingEnabled = true;
             CefSharpSettings.WcfEnabled = true;
-
             browser.KeyboardHandler = new CEFKeyBoardHander();
             this.Controls.Add(browser);
         }
@@ -49,22 +61,21 @@ namespace QuickApp
             {
                 HotkeyManager.Current.AddOrReplace("Hotkey1", Keys.LControlKey | Keys.Shift | Keys.Space, (sender, o) =>
                 {
-                    this.Invoke(new ThreadStart(() =>
+                    this.ControllerInvoke(() =>
                     {
                         MessageBox.Show("d");
-                    }));
+                    });
                 });
             }
             catch (Exception e)
             {
 
-                this.Invoke(new ThreadStart(() =>
+                this.ControllerInvoke(() =>
                 {
                     MessageBox.Show(e.Message, "错误");
-                }));
+                });
             }
         }
-
 
         /// <summary>
         /// 托盘初始化函数
@@ -140,14 +151,25 @@ namespace QuickApp
         private void exit_Click(object sender, EventArgs e)
         {
             //退出程序  
-            mIsStop = true;
+            mRunning = false;
             System.Environment.Exit(0);
         }
 
-        private void Form1_FormClosing(object sender, FormClosingEventArgs e)
+        private void MainForm_FormClosing(object sender, FormClosingEventArgs e)
         {
             e.Cancel = true;
             this.Hide();
+        }
+
+        private void btnExit_Click(object sender, EventArgs e)
+        {
+            System.Environment.Exit(0);
+        }
+
+        private void btnTest1_Click(object sender, EventArgs e)
+        {
+            WindowsSreenDisplayForm form = new WindowsSreenDisplayForm();
+            form.Show();
         }
     }
 }

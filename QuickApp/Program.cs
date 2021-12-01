@@ -17,6 +17,8 @@ namespace QuickApp
             Application.EnableVisualStyles();
             Application.SetCompatibleTextRenderingDefault(false);
             Application.Run(new MainForm());
+            //注册大漠插件
+            CUtil.AutoRegCom("regsvr32 -s dm.dll");
         }
     }
 }

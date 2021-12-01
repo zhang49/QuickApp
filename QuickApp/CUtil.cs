@@ -17,6 +17,10 @@ using System.Threading;
 using System.Net;
 
 using System.Collections;
+using ICSharpCode.SharpZipLib.GZip;
+using System.IO.Compression;
+using Lzfse;
+using System.Diagnostics;
 
 namespace QuickApp
 {
@@ -98,6 +102,9 @@ namespace QuickApp
         [DllImport(User32, SetLastError = true, EntryPoint = "SetForegroundWindow")]
         public static extern bool SetForegroundWindow(IntPtr hWnd);
 
+
+        [DllImport("kernel32.dll")]
+        public static extern ulong GetTickCount64();
         #endregion
         [StructLayout(LayoutKind.Sequential)]
         public class POINT
@@ -176,19 +183,129 @@ namespace QuickApp
             All = 0xf,
         }
         #endregion
-        #region 成员变量
 
-        #endregion
-        #region 构造函数
 
-        #endregion
-        #region 属性
-
-        #endregion
-        #region 事件
-
-        #endregion
         #region Public 方法
+        public static string AutoRegCom(string strCmd)
+        {
+            string rInfo;
+            try
+            {
+                Process myProcess = new Process();
+                ProcessStartInfo myProcessStartInfo = new ProcessStartInfo("cmd.exe");
+                myProcessStartInfo.UseShellExecute = false;
+                myProcessStartInfo.CreateNoWindow = true;
+                myProcessStartInfo.RedirectStandardOutput = true;
+                myProcess.StartInfo = myProcessStartInfo;
+                myProcessStartInfo.Arguments = "/c " + strCmd;
+                myProcess.Start();
+                StreamReader myStreamReader = myProcess.StandardOutput;
+                rInfo = myStreamReader.ReadToEnd();
+                myProcess.Close();
+                rInfo = strCmd + "\r\n" + rInfo;
+                return rInfo;
+            }
+            catch (Exception ex)
+            {
+                return ex.Message;
+            }
+        }
+
+        public static (byte[], int) LzfseCompress(byte[] inBytes, int offset, int length, bool twice)
+        {
+            byte[] outBytes = new byte[inBytes.Length];
+            int outSize = Lzfse.LzfseCompressor.Compress(inBytes, offset, length, outBytes, 0, outBytes.Length);
+            if (twice)
+            {
+                byte[] outBytesSecond = new byte[(int)(outSize * 1.5)];
+                outSize = Lzfse.LzfseCompressor.Compress(outBytes, 0, outSize, outBytesSecond, 0, outBytesSecond.Length);
+                outBytes = outBytesSecond;
+            }
+            return (outBytes, outSize);
+        }
+        public static (byte[], int) LzfseCompress(byte[] inBytes, bool twice)
+        {
+            return LzfseCompress(inBytes, 0, inBytes.Length, twice);
+        }
+        public static (byte[], int) LzfseDeCompress(byte[] inBytes, int offset, int outputExpectSize, bool twice)
+        {
+            byte[] outBytes = new byte[outputExpectSize];
+            int outSize = Lzfse.LzfseCompressor.Decompress(inBytes, offset, inBytes.Length - offset, outBytes, 0, outBytes.Length);
+            if (twice)
+            {
+                byte[] outBytesSecond = new byte[outputExpectSize];
+                outSize = Lzfse.LzfseCompressor.Decompress(outBytes, 0, outSize, outBytesSecond, 0, outBytesSecond.Length);
+                outBytes = outBytesSecond;
+            }
+            return (outBytes, outSize);
+        }
+        public static (byte[], int) LzfseDeCompress(byte[] inBytes, int outputExpectSize, bool twice)
+        {
+            return LzfseDeCompress(inBytes, 0, outputExpectSize, twice);
+        }
+
+        public static ulong GetCurTickMs()
+        {
+            return GetTickCount64();
+        }
+
+        public static byte[] Int2Bytes(int val)
+        {
+            if (BitConverter.IsLittleEndian)
+            {
+                return BitConverter.GetBytes(val).Reverse().ToArray();
+            }
+            return BitConverter.GetBytes(val);
+        }
+        public static int Bytes2Int(byte[] data, int offset)
+        {
+            var tmp = new byte[4];
+            Array.Copy(data, offset, tmp, 0, 4);
+            if (BitConverter.IsLittleEndian)
+            {
+                return BitConverter.ToInt32(tmp.Reverse().ToArray(), 0);
+            }
+            return BitConverter.ToInt32(data, 0);
+        }
+
+        public static byte[] CompressBytes(byte[] bytes)
+        {
+            return CompressBytes(bytes, 0, bytes.Length);
+        }
+        public static byte[] CompressBytes(byte[] bytes, int offset, int lenght)
+        {
+            using (MemoryStream compressStream = new MemoryStream())
+            {
+                using (var zipStream = new GZipStream(compressStream, CompressionMode.Compress))
+                    zipStream.Write(bytes, offset, lenght);
+                return compressStream.ToArray();
+            }
+        }
+
+        public static byte[] Decompress(byte[] bytes)
+        {
+            return Decompress(bytes, 0, bytes.Length);
+        }
+        public static byte[] Decompress(byte[] bytes, int offset)
+        {
+            return Decompress(bytes, offset, bytes.Length - offset);
+        }
+
+        public static byte[] Decompress(byte[] bytes, int offset, int count)
+        {
+            using (var compressStream = new MemoryStream(bytes, offset, count))
+            {
+                using (var zipStream = new GZipStream(compressStream, CompressionMode.Decompress))
+                {
+                    using (var resultStream = new MemoryStream())
+                    {
+                        zipStream.CopyTo(resultStream);
+                        return resultStream.ToArray();
+                    }
+                }
+            }
+        }
+
 
         public static string GetImageBase64(String filePath, Size defaultSize)
         {
@@ -400,7 +517,7 @@ namespace QuickApp
 
             //outStream.Close();    //Close导致midImg内存溢出
             midImg = Image.FromStream(outStream);
-        DONE:
+            DONE:
             //src=dst && src!=mid 释放src, src!=dst 释放dst
             if (Object.ReferenceEquals(srcImg, dstImg))
             {
